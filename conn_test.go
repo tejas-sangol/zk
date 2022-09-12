@@ -7,7 +7,20 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"reflect"
+	"math/rand"
 )
+
+var list []reflect.SelectCase
+var listch []chan int
+func init() {
+	list = make([]reflect.SelectCase, 65535)
+	listch = make([]chan int, 65535)
+	for i:=0;i<65535;i++ {
+		listch[i] = make(chan int, 1)
+		list[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(listch[i])} 
+	}
+}
 
 func TestRecurringReAuthHang(t *testing.T) {
 	zkC, err := StartTestCluster(t, 3, ioutil.Discard, ioutil.Discard)
@@ -231,4 +244,55 @@ func TestTemoveGetWatches(t *testing.T) {
 	if removed := conn.RemoveGetW(zkPath, ch); removed {
 		t.Fatalf("Removed the same channel twice")
 	}
+}
+
+func benchmarkSelect(count int, b *testing.B) {
+	for i:=0;i<b.N;i++ {
+		go func() {
+			listch[rand.Intn(count)] <- 1
+		}()
+
+		reflect.Select(list[:count])
+	}
+}
+
+func BenchmarkSelect10(b *testing.B) {
+	benchmarkSelect(10, b)
+}
+
+func BenchmarkSelect50(b *testing.B) {
+	benchmarkSelect(50, b)
+}
+
+func BenchmarkSelect75(b *testing.B) {
+	benchmarkSelect(75, b)
+}
+
+func BenchmarkSelect101(b *testing.B) {
+	benchmarkSelect(101, b)
+}
+
+func BenchmarkSelect200(b *testing.B) {
+	benchmarkSelect(200, b)
+}
+
+func BenchmarkSelect400(b *testing.B) {
+	benchmarkSelect(400, b)
+}
+
+func BenchmarkSelect500(b *testing.B) {
+	benchmarkSelect(500, b)
+}
+
+func BenchmarkSelect1000(b *testing.B) {
+	benchmarkSelect(1000, b)
+}
+
+func BenchmarkSelect5000(b *testing.B) {
+	benchmarkSelect(5000, b)
+}
+
+
+func BenchmarkSelectMin(b *testing.B) {
+	benchmarkSelect(6, b)
 }
